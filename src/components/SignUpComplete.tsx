@@ -11,8 +11,9 @@ function SignUpComplete() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  // Get the token from the URL
+  // Get the token and type from the URL
   const token = searchParams.get('token');
+  const type = searchParams.get('type');
 
   useEffect(() => {
     if (!token) {
@@ -42,19 +43,24 @@ function SignUpComplete() {
     setLoading(true);
 
     try {
+      if (type === 'invite') {
+        // For invite links, we need to verify the token first
+        const { error: verifyError } = await supabase.auth.verifyOtp({
+          token_hash: token,
+          type: 'invite',
+        });
+
+        if (verifyError) throw verifyError;
+      }
+
       // Update the user's password
-      const { error } = await supabase.auth.updateUser({
+      const { error: updateError } = await supabase.auth.updateUser({
         password: password
       });
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
-      // Sign in the user with their email and new password
-      await supabase.auth.signInWithPassword({
-        email: searchParams.get('email') || '',
-        password: password
-      });
-
+      // Navigate to admin page - the auth state will be updated automatically
       navigate('/admin');
     } catch (error) {
       setError(error instanceof Error ? error.message : 'An error occurred');
@@ -105,6 +111,7 @@ function SignUpComplete() {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
               minLength={8}
+              placeholder="At least 8 characters"
             />
           </div>
           <div>
@@ -119,6 +126,7 @@ function SignUpComplete() {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
               minLength={8}
+              placeholder="Repeat your password"
             />
           </div>
           <button
