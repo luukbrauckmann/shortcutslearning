@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, X, Check } from 'lucide-react';
+import React, { useState } from 'react';
+import { Check, X } from 'lucide-react';
+import shortcutsData from './shortcuts.json';
 
 interface Shortcut {
   id: string;
@@ -7,181 +8,234 @@ interface Shortcut {
   meaning: string;
 }
 
-const STORAGE_KEY = 'learning-shortcuts';
+interface AnswerAttempt {
+  shortcut: string;
+  meaning: string;
+  userAnswer: string;
+  isCorrect: boolean;
+}
 
 function App() {
-  const [shortcuts, setShortcuts] = useState<Shortcut[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [newShortcut, setNewShortcut] = useState('');
-  const [newMeaning, setNewMeaning] = useState('');
   const [practiceMode, setPracticeMode] = useState(false);
   const [currentShortcutIndex, setCurrentShortcutIndex] = useState(0);
   const [userAnswer, setUserAnswer] = useState('');
   const [showResult, setShowResult] = useState(false);
+  const [practiceShortcuts, setPracticeShortcuts] = useState<Shortcut[]>([]);
+  const [answerAttempts, setAnswerAttempts] = useState<AnswerAttempt[]>([]);
+  const [showOverview, setShowOverview] = useState(false);
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(shortcuts));
-  }, [shortcuts]);
-
-  const addShortcut = () => {
-    if (newShortcut && newMeaning) {
-      setShortcuts([
-        ...shortcuts,
-        {
-          id: Date.now().toString(),
-          shortcut: newShortcut,
-          meaning: newMeaning,
-        },
-      ]);
-      setNewShortcut('');
-      setNewMeaning('');
+  const shuffleArray = (array: Shortcut[]) => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
-  };
-
-  const deleteShortcut = (id: string) => {
-    setShortcuts(shortcuts.filter((s) => s.id !== id));
+    return shuffled;
   };
 
   const startPractice = () => {
-    if (shortcuts.length > 0) {
-      setPracticeMode(true);
-      setCurrentShortcutIndex(0);
-      setUserAnswer('');
-      setShowResult(false);
-    }
+    setPracticeMode(true);
+    setCurrentShortcutIndex(0);
+    setUserAnswer('');
+    setShowResult(false);
+    setAnswerAttempts([]);
+    setShowOverview(false);
+    setPracticeShortcuts(shuffleArray(shortcutsData.shortcuts));
   };
 
   const checkAnswer = () => {
+    const currentShortcut = practiceShortcuts[currentShortcutIndex];
+    const isCorrect = userAnswer.toLowerCase() === currentShortcut.meaning.toLowerCase();
+    
+    setAnswerAttempts(prev => [...prev, {
+      shortcut: currentShortcut.shortcut,
+      meaning: currentShortcut.meaning,
+      userAnswer: userAnswer,
+      isCorrect: isCorrect
+    }]);
+
     setShowResult(true);
-    if (userAnswer.toLowerCase() === shortcuts[currentShortcutIndex].meaning.toLowerCase()) {
-      setTimeout(() => {
-        setShowResult(false);
-        setUserAnswer('');
-        setCurrentShortcutIndex((prev) => 
-          prev + 1 >= shortcuts.length ? 0 : prev + 1
-        );
-      }, 1500);
+  };
+
+  const moveToNext = () => {
+    setShowResult(false);
+    setUserAnswer('');
+    if (currentShortcutIndex + 1 >= practiceShortcuts.length) {
+      setShowOverview(true);
+    } else {
+      setCurrentShortcutIndex(prev => prev + 1);
     }
+  };
+
+  const handleDontKnow = () => {
+    const currentShortcut = practiceShortcuts[currentShortcutIndex];
+    setAnswerAttempts(prev => [...prev, {
+      shortcut: currentShortcut.shortcut,
+      meaning: currentShortcut.meaning,
+      userAnswer: "I don't know",
+      isCorrect: false
+    }]);
+    setShowResult(true);
+  };
+
+  const resetPractice = () => {
+    setPracticeMode(false);
+    setShowOverview(false);
+    setAnswerAttempts([]);
   };
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-8">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6 sm:mb-8">Shortcut Learning App</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6 sm:mb-8">Aviation Shortcuts</h1>
         
         {!practiceMode ? (
           <div>
             <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
-              <h2 className="text-lg sm:text-xl font-semibold mb-4">Add New Shortcut</h2>
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                <input
-                  type="text"
-                  value={newShortcut}
-                  onChange={(e) => setNewShortcut(e.target.value)}
-                  placeholder="Shortcut"
-                  className="flex-1 p-2 border rounded text-base"
-                />
-                <input
-                  type="text"
-                  value={newMeaning}
-                  onChange={(e) => setNewMeaning(e.target.value)}
-                  placeholder="Meaning"
-                  className="flex-1 p-2 border rounded text-base"
-                />
-                <button
-                  onClick={addShortcut}
-                  className="sm:w-auto w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 transition-colors flex items-center justify-center"
-                >
-                  <Plus size={20} className="sm:mr-0 mr-2" />
-                  <span className="sm:hidden">Add Shortcut</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
-              <h2 className="text-lg sm:text-xl font-semibold mb-4">Your Shortcuts</h2>
-              {shortcuts.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 border-b last:border-b-0 gap-2 sm:gap-0"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                    <span className="font-medium text-base">{item.shortcut}</span>
+              <h2 className="text-lg sm:text-xl font-semibold mb-4">Available Shortcuts</h2>
+              <div className="grid gap-2">
+                {shortcutsData.shortcuts.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex flex-col sm:flex-row sm:items-center p-3 border-b last:border-b-0 gap-1 sm:gap-2"
+                  >
+                    <span className="font-medium text-base w-24">{item.shortcut}</span>
                     <span className="text-gray-500 hidden sm:inline">→</span>
                     <span className="text-gray-600">{item.meaning}</span>
                   </div>
-                  <button
-                    onClick={() => deleteShortcut(item.id)}
-                    className="text-red-500 hover:text-red-600 self-end sm:self-center"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-              ))}
-              {shortcuts.length === 0 && (
-                <p className="text-gray-500 text-center py-4 text-base">
-                  No shortcuts added yet. Add some above!
-                </p>
-              )}
+                ))}
+              </div>
             </div>
 
             <button
               onClick={startPractice}
-              disabled={shortcuts.length === 0}
-              className="w-full bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 transition-colors disabled:bg-gray-300 text-base sm:text-lg"
+              className="w-full bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 transition-colors text-base sm:text-lg"
             >
               Start Practice
+            </button>
+          </div>
+        ) : showOverview ? (
+          <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-semibold mb-4">Practice Results</h2>
+            <div className="mb-6">
+              <p className="text-base mb-4">
+                You completed {answerAttempts.length} questions with{' '}
+                {answerAttempts.filter(a => a.isCorrect).length} correct answers.
+              </p>
+              <div className="space-y-4">
+                {answerAttempts.map((attempt, index) => (
+                  <div
+                    key={index}
+                    className={`p-4 rounded-lg ${
+                      attempt.isCorrect ? 'bg-green-50' : 'bg-red-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      {attempt.isCorrect ? (
+                        <Check className="text-green-600" size={20} />
+                      ) : (
+                        <X className="text-red-600" size={20} />
+                      )}
+                      <span className="font-semibold">{attempt.shortcut}</span>
+                    </div>
+                    <p className="text-gray-600">Correct: {attempt.meaning}</p>
+                    {!attempt.isCorrect && (
+                      <p className="text-red-600 mt-1">Your answer: {attempt.userAnswer}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <button
+              onClick={resetPractice}
+              className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              Back to Home
             </button>
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
             <h2 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6">Practice Mode</h2>
             <div className="mb-6">
-              <p className="text-base sm:text-lg mb-2">What does this shortcut mean?</p>
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-base sm:text-lg">What does this shortcut mean?</p>
+                <p className="text-sm text-gray-500">
+                  {currentShortcutIndex + 1} of {practiceShortcuts.length}
+                </p>
+              </div>
               <p className="text-xl sm:text-2xl font-bold text-blue-600 mb-4">
-                {shortcuts[currentShortcutIndex].shortcut}
+                {practiceShortcuts[currentShortcutIndex].shortcut}
               </p>
               <input
                 type="text"
                 value={userAnswer}
                 onChange={(e) => setUserAnswer(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && checkAnswer()}
+                onKeyDown={(e) => e.key === 'Enter' && !showResult && checkAnswer()}
                 placeholder="Type the meaning..."
                 className="w-full p-3 border rounded mb-4 text-base"
+                disabled={showResult}
                 autoFocus
               />
               {showResult && (
-                <div className={`text-center p-2 rounded ${
-                  userAnswer.toLowerCase() === shortcuts[currentShortcutIndex].meaning.toLowerCase()
+                <div className={`text-center p-3 rounded mb-4 ${
+                  userAnswer.toLowerCase() === practiceShortcuts[currentShortcutIndex].meaning.toLowerCase()
                     ? 'bg-green-100 text-green-700'
                     : 'bg-red-100 text-red-700'
                 }`}>
-                  {userAnswer.toLowerCase() === shortcuts[currentShortcutIndex].meaning.toLowerCase() ? (
+                  {userAnswer.toLowerCase() === practiceShortcuts[currentShortcutIndex].meaning.toLowerCase() ? (
                     <div className="flex items-center justify-center gap-2">
                       <Check size={20} />
                       <span>Correct!</span>
                     </div>
                   ) : (
-                    <p>Try again!</p>
+                    <div>
+                      <p className="mb-2">Incorrect</p>
+                      <p className="text-sm">
+                        The correct answer is: {practiceShortcuts[currentShortcutIndex].meaning}
+                      </p>
+                    </div>
                   )}
                 </div>
               )}
             </div>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-              <button
-                onClick={() => setPracticeMode(false)}
-                className="w-full sm:flex-1 bg-gray-500 text-white py-2 rounded hover:bg-gray-600 transition-colors text-base"
-              >
-                Exit Practice
-              </button>
-              <button
-                onClick={checkAnswer}
-                className="w-full sm:flex-1 bg-blue-500 text-white py-2 rounded hover:bg-blue-600 transition-colors text-base"
-              >
-                Check Answer
-              </button>
+              {!showResult ? (
+                <>
+                  <button
+                    onClick={resetPractice}
+                    className="w-full sm:flex-1 bg-gray-500 text-white py-2 rounded hover:bg-gray-600 transition-colors text-base"
+                  >
+                    Exit Practice
+                  </button>
+                  <button
+                    onClick={handleDontKnow}
+                    className="w-full sm:flex-1 bg-yellow-500 text-white py-2 rounded hover:bg-yellow-600 transition-colors text-base"
+                  >
+                    I don't know
+                  </button>
+                  <button
+                    onClick={checkAnswer}
+                    className="w-full sm:flex-1 bg-blue-500 text-white py-2 rounded hover:bg-blue-600 transition-colors text-base"
+                  >
+                    Check Answer
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={resetPractice}
+                    className="w-full sm:flex-1 bg-gray-500 text-white py-2 rounded hover:bg-gray-600 transition-colors text-base"
+                  >
+                    Exit Practice
+                  </button>
+                  <button
+                    onClick={moveToNext}
+                    className="w-full sm:flex-[2] bg-green-500 text-white py-2 rounded hover:bg-green-600 transition-colors text-base"
+                  >
+                    Next Question
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}
