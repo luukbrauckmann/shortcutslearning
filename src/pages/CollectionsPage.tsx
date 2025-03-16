@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCollections } from '../hooks/useCollections';
 import { useShortcuts } from '../hooks/useShortcuts';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 import CollectionManager from '../components/CollectionManager';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -16,6 +17,7 @@ function CollectionsPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
   const toggleCollection = (collectionId: string) => {
     setExpandedCollections(prev => ({
@@ -26,6 +28,38 @@ function CollectionsPage() {
 
   const startPractice = (collectionId: string) => {
     navigate(`/practice/${collectionId}`);
+  };
+
+  const handleCreateCollection = async () => {
+    if (!session) {
+      setFormError('You must be signed in to create collections');
+      return;
+    }
+
+    if (!newCollectionName.trim()) {
+      setFormError('Collection name is required');
+      return;
+    }
+
+    try {
+      setIsCreating(true);
+      setFormError(null);
+
+      const { error: createError } = await supabase
+        .from('collections')
+        .insert([{ name: newCollectionName.trim() }]);
+
+      if (createError) throw createError;
+
+      setShowAddForm(false);
+      setNewCollectionName('');
+      await refetch();
+    } catch (error) {
+      console.error('Error creating collection:', error);
+      setFormError('Failed to create collection');
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   if (collectionsLoading || shortcutsLoading) return <LoadingSpinner />;
@@ -125,19 +159,11 @@ function CollectionsPage() {
                   Cancel
                 </button>
                 <button
-                  onClick={() => {
-                    if (!newCollectionName.trim()) {
-                      setFormError('Collection name is required');
-                      return;
-                    }
-                    setShowAddForm(false);
-                    setNewCollectionName('');
-                    setFormError(null);
-                    refetch();
-                  }}
-                  className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                  onClick={handleCreateCollection}
+                  disabled={isCreating}
+                  className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Create Collection
+                  {isCreating ? 'Creating...' : 'Create Collection'}
                 </button>
               </div>
             </div>
