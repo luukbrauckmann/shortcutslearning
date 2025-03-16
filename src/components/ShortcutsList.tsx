@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, Save, X, BookOpen, ChevronDown, ChevronRight, Check } from 'lucide-react';
+import { Plus, Pencil, Trash2, Save, X, BookOpen, ChevronDown, ChevronRight, FolderOpen, Trophy } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import Practice from './Practice';
 
 interface Shortcut {
   id: string;
@@ -9,44 +10,81 @@ interface Shortcut {
   meaning: string;
 }
 
+interface Chapter {
+  id: string;
+  name: string;
+  shortcuts: Shortcut[];
+}
+
 function ShortcutsList() {
   const { session } = useAuth();
-  const [shortcuts, setShortcuts] = useState<Shortcut[]>([]);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [newShortcut, setNewShortcut] = useState({ shortcut: '', meaning: '' });
+  const [editingChapterId, setEditingChapterId] = useState<string | null>(null);
+  const [newShortcut, setNewShortcut] = useState({ shortcut: '', meaning: '', chapterId: '' });
   const [editForm, setEditForm] = useState({ shortcut: '', meaning: '' });
+  const [editChapterForm, setEditChapterForm] = useState({ name: '' });
   const [showAddForm, setShowAddForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expandedChapters, setExpandedChapters] = useState<Record<string, boolean>>({});
+  const [addingToChapter, setAddingToChapter] = useState<Chapter | null>(null);
   const [practiceMode, setPracticeMode] = useState(false);
-  const [currentShortcutIndex, setCurrentShortcutIndex] = useState(0);
-  const [userAnswer, setUserAnswer] = useState('');
-  const [showResult, setShowResult] = useState(false);
-  const [answerAttempts, setAnswerAttempts] = useState<Array<{
-    shortcut: string;
-    meaning: string;
-    userAnswer: string;
-    isCorrect: boolean;
-  }>>([]);
-  const [showOverview, setShowOverview] = useState(false);
-  const [isListExpanded, setIsListExpanded] = useState(false);
+  const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
+  const [chapterScores, setChapterScores] = useState<Record<string, number>>({});
+
+  const loadScores = () => {
+    const scoresStr = localStorage.getItem('chapterScores');
+    if (scoresStr) {
+      setChapterScores(JSON.parse(scoresStr));
+    }
+  };
 
   useEffect(() => {
-    fetchShortcuts();
+    fetchChapters();
+    loadScores();
   }, []);
 
-  const fetchShortcuts = async () => {
+  const fetchChapters = async () => {
     try {
-      const { data, error } = await supabase
-        .from('shortcuts')
+      const { data: chaptersData, error: chaptersError } = await supabase
+        .from('chapters')
         .select('*')
-        .order('shortcut');
+        .order('name');
 
-      if (error) throw error;
-      setShortcuts(data || []);
+      if (chaptersError) throw chaptersError;
+
+      const { data: itemsData, error: itemsError } = await supabase
+        .from('chapter_items')
+        .select(`
+          chapter_id,
+          shortcuts (
+            id,
+            shortcut,
+            meaning
+          )
+        `);
+
+      if (itemsError) throw itemsError;
+
+      const regularChapters = chaptersData.map((chapter: any) => ({
+        ...chapter,
+        shortcuts: itemsData
+          .filter((item: any) => item.chapter_id === chapter.id)
+          .map((item: any) => item.shortcuts)
+          .filter((shortcut: any) => shortcut !== null)
+      }));
+
+      const sortedChapters = regularChapters.sort((a, b) => {
+        const aNum = parseInt(a.name.split(' ')[1]);
+        const bNum = parseInt(b.name.split(' ')[1]);
+        return aNum - bNum;
+      });
+
+      setChapters(sortedChapters);
     } catch (error) {
-      console.error('Error fetching shortcuts:', error);
-      setError('Failed to load shortcuts');
+      console.error('Error fetching chapters:', error);
+      setError('Failed to load chapters');
     } finally {
       setLoading(false);
     }
@@ -54,21 +92,33 @@ function ShortcutsList() {
 
   const handleAdd = async () => {
     try {
-      if (!newShortcut.shortcut || !newShortcut.meaning) {
-        setError('Both shortcut and meaning are required');
+      if (!newShortcut.shortcut || !newShortcut.meaning || !newShortcut.chapterId) {
+        setError('All fields are required');
         return;
       }
 
-      const { error } = await supabase
+      const { data: shortcutData, error: shortcutError } = await supabase
         .from('shortcuts')
-        .insert([newShortcut]);
+        .insert([{
+          shortcut: newShortcut.shortcut,
+          meaning: newShortcut.meaning
+        }])
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (shortcutError) throw shortcutError;
 
-      setNewShortcut({ shortcut: '', meaning: '' });
-      setShowAddForm(false);
-      setError(null);
-      fetchShortcuts();
+      const { error: itemError } = await supabase
+        .from('chapter_items')
+        .insert([{
+          chapter_id: newShortcut.chapterId,
+          shortcut_id: shortcutData.id
+        }]);
+
+      if (itemError) throw itemError;
+
+      closeAddForm();
+      fetchChapters();
     } catch (error) {
       console.error('Error adding shortcut:', error);
       setError('Failed to add shortcut');
@@ -91,7 +141,7 @@ function ShortcutsList() {
 
       setEditingId(null);
       setError(null);
-      fetchShortcuts();
+      fetchChapters();
     } catch (error) {
       console.error('Error updating shortcut:', error);
       setError('Failed to update shortcut');
@@ -107,7 +157,7 @@ function ShortcutsList() {
 
       if (error) throw error;
 
-      fetchShortcuts();
+      fetchChapters();
     } catch (error) {
       console.error('Error deleting shortcut:', error);
       setError('Failed to delete shortcut');
@@ -119,57 +169,44 @@ function ShortcutsList() {
     setEditForm({ shortcut: shortcut.shortcut, meaning: shortcut.meaning });
   };
 
-  const startPractice = () => {
-    setPracticeMode(true);
-    setCurrentShortcutIndex(0);
-    setUserAnswer('');
-    setShowResult(false);
-    setAnswerAttempts([]);
-    setShowOverview(false);
-    const shuffled = [...shortcuts].sort(() => Math.random() - 0.5);
-    setShortcuts(shuffled);
+  const toggleChapter = (id: string) => {
+    setExpandedChapters(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
   };
 
-  const checkAnswer = () => {
-    const currentShortcut = shortcuts[currentShortcutIndex];
-    const isCorrect = userAnswer.trim().toLowerCase() === currentShortcut.meaning.trim().toLowerCase();
-    
-    setAnswerAttempts(prev => [...prev, {
-      shortcut: currentShortcut.shortcut,
-      meaning: currentShortcut.meaning,
-      userAnswer: userAnswer,
-      isCorrect: isCorrect
-    }]);
-
-    setShowResult(true);
+  const openAddForm = (chapter: Chapter) => {
+    setAddingToChapter(chapter);
+    setNewShortcut(prev => ({ ...prev, chapterId: chapter.id }));
+    setShowAddForm(true);
   };
 
-  const moveToNext = () => {
-    setShowResult(false);
-    setUserAnswer('');
-    if (currentShortcutIndex + 1 >= shortcuts.length) {
-      setShowOverview(true);
+  const closeAddForm = () => {
+    setShowAddForm(false);
+    setAddingToChapter(null);
+    setNewShortcut({ shortcut: '', meaning: '', chapterId: '' });
+    setError(null);
+  };
+
+  const startPractice = (chapter?: Chapter) => {
+    if (chapter) {
+      setSelectedChapter(chapter);
     } else {
-      setCurrentShortcutIndex(prev => prev + 1);
+      const allShortcuts = chapters.reduce((acc, chapter) => [...acc, ...chapter.shortcuts], [] as Shortcut[]);
+      setSelectedChapter({
+        id: 'all',
+        name: 'All Chapters',
+        shortcuts: allShortcuts
+      });
     }
+    setPracticeMode(true);
   };
 
-  const handleDontKnow = () => {
-    const currentShortcut = shortcuts[currentShortcutIndex];
-    setAnswerAttempts(prev => [...prev, {
-      shortcut: currentShortcut.shortcut,
-      meaning: currentShortcut.meaning,
-      userAnswer: "I don't know",
-      isCorrect: false
-    }]);
-    setShowResult(true);
-  };
-
-  const resetPractice = () => {
+  const exitPractice = () => {
     setPracticeMode(false);
-    setShowOverview(false);
-    setAnswerAttempts([]);
-    fetchShortcuts();
+    setSelectedChapter(null);
+    loadScores();
   };
 
   if (loading) {
@@ -181,178 +218,159 @@ function ShortcutsList() {
   }
 
   if (practiceMode) {
-    if (showOverview) {
-      const correctAnswers = answerAttempts.filter(a => a.isCorrect).length;
-      const totalQuestions = answerAttempts.length;
-      const percentage = Math.round((correctAnswers / totalQuestions) * 100);
-
-      return (
-        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
-          <h2 className="text-lg sm:text-xl font-semibold mb-4">Practice Results</h2>
-          <div className="mb-6">
-            <div className="bg-gray-50 p-4 rounded-lg mb-6">
-              <p className="text-xl font-semibold text-center">
-                Score: {correctAnswers}/{totalQuestions} ({percentage}%)
-              </p>
-            </div>
-            <div className="space-y-4">
-              {answerAttempts.map((attempt, index) => (
-                <div
-                  key={index}
-                  className={`p-4 rounded-lg ${
-                    attempt.isCorrect ? 'bg-green-50' : 'bg-red-50'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    {attempt.isCorrect ? (
-                      <Check className="text-green-600" size={20} />
-                    ) : (
-                      <X className="text-red-600" size={20} />
-                    )}
-                    <span className="font-semibold">{attempt.shortcut}</span>
-                  </div>
-                  <p className="text-gray-600">Correct: {attempt.meaning}</p>
-                  {!attempt.isCorrect && (
-                    <p className="text-red-600 mt-1">Your answer: {attempt.userAnswer}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-          <button
-            onClick={resetPractice}
-            className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition-colors"
-          >
-            Back to List
-          </button>
-        </div>
-      );
-    }
-
-    return (
-      <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
-        <h2 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6">Practice Mode</h2>
-        <div className="mb-6">
-          <div className="flex justify-between items-center mb-2">
-            <p className="text-base sm:text-lg">What does this shortcut mean?</p>
-            <p className="text-sm text-gray-500">
-              {currentShortcutIndex + 1} of {shortcuts.length}
-            </p>
-          </div>
-          <p className="text-xl sm:text-2xl font-bold text-blue-600 mb-4">
-            {shortcuts[currentShortcutIndex].shortcut}
-          </p>
-          <input
-            type="text"
-            value={userAnswer}
-            onChange={(e) => setUserAnswer(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !showResult && checkAnswer()}
-            placeholder="Type the meaning..."
-            className="w-full p-3 border rounded mb-4 text-base"
-            disabled={showResult}
-            autoFocus
-            autoComplete="off"
-          />
-          {showResult && (
-            <div className={`text-center p-3 rounded mb-4 ${
-              userAnswer.trim().toLowerCase() === shortcuts[currentShortcutIndex].meaning.trim().toLowerCase()
-                ? 'bg-green-100 text-green-700'
-                : 'bg-red-100 text-red-700'
-            }`}>
-              {userAnswer.trim().toLowerCase() === shortcuts[currentShortcutIndex].meaning.trim().toLowerCase() ? (
-                <div className="flex items-center justify-center gap-2">
-                  <Check size={20} />
-                  <span>Correct!</span>
-                </div>
-              ) : (
-                <div>
-                  <p className="mb-2">Incorrect</p>
-                  <p className="text-sm">
-                    The correct answer is: {shortcuts[currentShortcutIndex].meaning}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-          {!showResult ? (
-            <>
-              <button
-                onClick={resetPractice}
-                className="w-full sm:flex-1 bg-gray-500 text-white py-2 rounded hover:bg-gray-600 transition-colors text-base"
-              >
-                Exit Practice
-              </button>
-              <button
-                onClick={handleDontKnow}
-                className="w-full sm:flex-1 bg-yellow-500 text-white py-2 rounded hover:bg-yellow-600 transition-colors text-base"
-              >
-                I don't know
-              </button>
-              <button
-                onClick={checkAnswer}
-                className="w-full sm:flex-1 bg-blue-500 text-white py-2 rounded hover:bg-blue-600 transition-colors text-base"
-              >
-                Check Answer
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={resetPractice}
-                className="w-full sm:flex-1 bg-gray-500 text-white py-2 rounded hover:bg-gray-600 transition-colors text-base"
-              >
-                Exit Practice
-              </button>
-              <button
-                onClick={moveToNext}
-                className="w-full sm:flex-[2] bg-green-500 text-white py-2 rounded hover:bg-green-600 transition-colors text-base"
-              >
-                Next Question
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    );
+    return <Practice chapter={selectedChapter} onExit={exitPractice} />;
   }
 
   return (
     <div>
-      <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsListExpanded(!isListExpanded)}
-              className="text-gray-600 hover:text-gray-800"
-            >
-              {isListExpanded ? <ChevronDown size={24} /> : <ChevronRight size={24} />}
-            </button>
-            <h2 className="text-xl font-semibold">Aviation Shortcuts</h2>
-            <span className="ml-2 text-sm text-gray-500">({shortcuts.length} total)</span>
-          </div>
-          {session && (
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-              disabled={showAddForm}
-            >
-              <Plus size={20} />
-              <span>Add New</span>
-            </button>
-          )}
+      {error && (
+        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
+          {error}
         </div>
+      )}
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
-            {error}
+      <button
+        onClick={() => startPractice()}
+        className="w-full bg-green-500 text-white py-4 rounded-lg hover:bg-green-600 transition-colors text-lg font-medium flex items-center justify-center gap-2 mb-6"
+      >
+        <BookOpen size={24} />
+        <span>Practice All Chapters</span>
+      </button>
+
+      <div className="space-y-4">
+        {chapters.map((chapter) => (
+          <div key={chapter.id} className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => toggleChapter(chapter.id)}
+                  className="text-gray-600 hover:text-gray-800"
+                >
+                  {expandedChapters[chapter.id] ? (
+                    <ChevronDown size={24} />
+                  ) : (
+                    <ChevronRight size={24} />
+                  )}
+                </button>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <FolderOpen size={20} className="text-blue-500" />
+                    <h2 className="text-lg font-semibold">{chapter.name}</h2>
+                    <span className="text-sm text-gray-500">
+                      ({chapter.shortcuts.length} shortcuts)
+                    </span>
+                  </div>
+                  {chapterScores[chapter.id] !== undefined && (
+                    <div 
+                      className="flex items-center gap-2 px-3 py-1 bg-yellow-50 border border-yellow-200 rounded-full"
+                      title="Best Score"
+                    >
+                      <Trophy size={16} className="text-yellow-500" />
+                      <span className="font-medium text-yellow-700">
+                        {chapterScores[chapter.id]}%
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {session && (
+                  <button
+                    onClick={() => openAddForm(chapter)}
+                    className="flex items-center gap-1 px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+                  >
+                    <Plus size={16} />
+                    <span>Add</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => startPractice(chapter)}
+                  className="flex items-center gap-1 px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                >
+                  <BookOpen size={16} />
+                  <span>Practice</span>
+                </button>
+              </div>
+            </div>
+
+            {expandedChapters[chapter.id] && (
+              <div className="space-y-2 mt-4">
+                {chapter.shortcuts.map((shortcut) => (
+                  <div
+                    key={shortcut.id}
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
+                  >
+                    {editingId === shortcut.id ? (
+                      <div className="flex-1 flex items-center gap-4">
+                        <input
+                          type="text"
+                          value={editForm.shortcut}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, shortcut: e.target.value }))}
+                          className="w-32 p-2 border rounded"
+                        />
+                        <input
+                          type="text"
+                          value={editForm.meaning}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, meaning: e.target.value }))}
+                          className="flex-1 p-2 border rounded"
+                        />
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleEdit(shortcut.id)}
+                            className="p-1 text-green-600 hover:text-green-700"
+                          >
+                            <Save size={20} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingId(null);
+                              setError(null);
+                            }}
+                            className="p-1 text-gray-600 hover:text-gray-700"
+                          >
+                            <X size={20} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex-1">
+                          <span className="font-medium">{shortcut.shortcut}</span>
+                          <span className="mx-2 text-gray-400">→</span>
+                          <span className="text-gray-600">{shortcut.meaning}</span>
+                        </div>
+                        {session && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => startEdit(shortcut)}
+                              className="p-1 text-blue-600 hover:text-blue-700"
+                            >
+                              <Pencil size={20} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(shortcut.id)}
+                              className="p-1 text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 size={20} />
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        )}
+        ))}
+      </div>
 
-        {showAddForm && session && (
-          <div className="mb-6 p-4 border rounded-lg bg-gray-50">
-            <h3 className="text-lg font-medium mb-4">Add New Shortcut</h3>
+      {showAddForm && session && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full">
+            <h3 className="text-lg font-medium mb-4">
+              Add New Shortcut to {addingToChapter?.name}
+            </h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -364,6 +382,7 @@ function ShortcutsList() {
                   onChange={(e) => setNewShortcut(prev => ({ ...prev, shortcut: e.target.value }))}
                   className="w-full p-2 border rounded"
                   placeholder="Enter shortcut"
+                  autoFocus
                 />
               </div>
               <div>
@@ -378,13 +397,9 @@ function ShortcutsList() {
                   placeholder="Enter meaning"
                 />
               </div>
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 mt-6">
                 <button
-                  onClick={() => {
-                    setShowAddForm(false);
-                    setNewShortcut({ shortcut: '', meaning: '' });
-                    setError(null);
-                  }}
+                  onClick={closeAddForm}
                   className="px-4 py-2 text-gray-600 hover:text-gray-800"
                 >
                   Cancel
@@ -398,85 +413,8 @@ function ShortcutsList() {
               </div>
             </div>
           </div>
-        )}
-
-        {isListExpanded && (
-          <div className="space-y-2">
-            {shortcuts.map((shortcut) => (
-              <div
-                key={shortcut.id}
-                className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
-              >
-                {editingId === shortcut.id && session ? (
-                  <div className="flex-1 flex items-center gap-4">
-                    <input
-                      type="text"
-                      value={editForm.shortcut}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, shortcut: e.target.value }))}
-                      className="w-32 p-2 border rounded"
-                    />
-                    <input
-                      type="text"
-                      value={editForm.meaning}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, meaning: e.target.value }))}
-                      className="flex-1 p-2 border rounded"
-                    />
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleEdit(shortcut.id)}
-                        className="p-1 text-green-600 hover:text-green-700"
-                      >
-                        <Save size={20} />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setEditingId(null);
-                          setError(null);
-                        }}
-                        className="p-1 text-gray-600 hover:text-gray-700"
-                      >
-                        <X size={20} />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex-1">
-                      <span className="font-medium">{shortcut.shortcut}</span>
-                      <span className="mx-2 text-gray-400">→</span>
-                      <span className="text-gray-600">{shortcut.meaning}</span>
-                    </div>
-                    {session && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => startEdit(shortcut)}
-                          className="p-1 text-blue-600 hover:text-blue-700"
-                        >
-                          <Pencil size={20} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(shortcut.id)}
-                          className="p-1 text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 size={20} />
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <button
-        onClick={startPractice}
-        className="w-full bg-green-500 text-white py-4 rounded-lg hover:bg-green-600 transition-colors text-lg font-medium flex items-center justify-center gap-2"
-      >
-        <BookOpen size={24} />
-        <span>Start Practice</span>
-      </button>
+        </div>
+      )}
     </div>
   );
 }
