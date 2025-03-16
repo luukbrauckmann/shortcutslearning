@@ -66,7 +66,7 @@ function Practice() {
 
   const checkAnswer = () => {
     const currentShortcut = practiceShortcuts[currentShortcutIndex];
-    const isCorrect = userAnswer.toLowerCase() === currentShortcut.meaning.toLowerCase();
+    const isCorrect = userAnswer.trim().toLowerCase() === currentShortcut.meaning.trim().toLowerCase();
     
     setAnswerAttempts(prev => [...prev, {
       shortcut: currentShortcut.shortcut,
@@ -210,11 +210,11 @@ function Practice() {
         />
         {showResult && (
           <div className={`text-center p-3 rounded mb-4 ${
-            userAnswer.toLowerCase() === practiceShortcuts[currentShortcutIndex].meaning.toLowerCase()
+            userAnswer.trim().toLowerCase() === practiceShortcuts[currentShortcutIndex].meaning.trim().toLowerCase()
               ? 'bg-green-100 text-green-700'
               : 'bg-red-100 text-red-700'
           }`}>
-            {userAnswer.toLowerCase() === practiceShortcuts[currentShortcutIndex].meaning.toLowerCase() ? (
+            {userAnswer.trim().toLowerCase() === practiceShortcuts[currentShortcutIndex].meaning.trim().toLowerCase() ? (
               <div className="flex items-center justify-center gap-2">
                 <Check size={20} />
                 <span>Correct!</span>

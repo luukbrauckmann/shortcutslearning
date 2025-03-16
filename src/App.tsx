@@ -3,9 +3,11 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import Practice from './components/Practice';
 import Admin from './components/Admin';
 import SignIn from './components/SignIn';
+import SignUpComplete from './components/SignUpComplete';
 import ProtectedRoute from './components/ProtectedRoute';
 import { Shield } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';
+import { supabase } from './lib/supabase';
 
 function App() {
   const { session } = useAuth();
@@ -46,6 +48,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Practice />} />
             <Route path="/signin" element={<SignIn />} />
+            <Route path="/signup/complete" element={<SignUpComplete />} />
             <Route
               path="/admin"
               element={
