@@ -182,14 +182,19 @@ function ShortcutsList() {
 
   if (practiceMode) {
     if (showOverview) {
+      const correctAnswers = answerAttempts.filter(a => a.isCorrect).length;
+      const totalQuestions = answerAttempts.length;
+      const percentage = Math.round((correctAnswers / totalQuestions) * 100);
+
       return (
         <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
           <h2 className="text-lg sm:text-xl font-semibold mb-4">Practice Results</h2>
           <div className="mb-6">
-            <p className="text-base mb-4">
-              You completed {answerAttempts.length} questions with{' '}
-              {answerAttempts.filter(a => a.isCorrect).length} correct answers.
-            </p>
+            <div className="bg-gray-50 p-4 rounded-lg mb-6">
+              <p className="text-xl font-semibold text-center">
+                Score: {correctAnswers}/{totalQuestions} ({percentage}%)
+              </p>
+            </div>
             <div className="space-y-4">
               {answerAttempts.map((attempt, index) => (
                 <div
