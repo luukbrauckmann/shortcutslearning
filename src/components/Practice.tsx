@@ -207,6 +207,7 @@ function Practice() {
           className="w-full p-3 border rounded mb-4 text-base"
           disabled={showResult}
           autoFocus
+          autoComplete="off"
         />
         {showResult && (
           <div className={`text-center p-3 rounded mb-4 ${
