@@ -1,38 +1,14 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom';
-import ShortcutsList from './components/ShortcutsList';
-import SignIn from './components/SignIn';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Shield } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import { supabase } from './lib/supabase';
-
-function Navigation() {
-  const { session } = useAuth();
-
-  return (
-    <div className="flex justify-between items-center mb-6 sm:mb-8">
-      <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Aviation Shortcuts</h1>
-      <div className="flex items-center gap-3">
-        {session ? (
-          <button
-            onClick={() => supabase.auth.signOut()}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-          >
-            Sign Out
-          </button>
-        ) : (
-          <Link
-            to="/signin"
-            className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors"
-          >
-            <Shield size={20} />
-            <span>Admin Sign In</span>
-          </Link>
-        )}
-      </div>
-    </div>
-  );
-}
+import Navigation from './components/Navigation';
+import ProtectedRoute from './components/ProtectedRoute';
+import ShortcutsPage from './pages/ShortcutsPage';
+import CollectionsPage from './pages/CollectionsPage';
+import SignInPage from './pages/SignInPage';
+import PracticePage from './pages/PracticePage';
 
 function App() {
   const { session, loading } = useAuth();
@@ -51,9 +27,12 @@ function App() {
         <div className="max-w-2xl mx-auto">
           <Navigation />
           <Routes>
-            <Route path="/" element={<ShortcutsList />} />
+            <Route path="/" element={<Navigate to="/shortcuts" replace />} />
+            <Route path="/shortcuts" element={<ShortcutsPage />} />
+            <Route path="/collections" element={<CollectionsPage />} />
+            <Route path="/practice/:collectionId?" element={<PracticePage />} />
             <Route path="/signin" element={
-              session ? <Navigate to="/" replace /> : <SignIn />
+              session ? <Navigate to="/shortcuts" replace /> : <SignInPage />
             } />
           </Routes>
         </div>

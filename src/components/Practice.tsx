@@ -1,17 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Check, X, ArrowLeft } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 
 interface Shortcut {
   id: string;
   shortcut: string;
   meaning: string;
-}
-
-interface Chapter {
-  id: string;
-  name: string;
-  shortcuts: Shortcut[];
 }
 
 interface AnswerAttempt {
@@ -22,69 +15,26 @@ interface AnswerAttempt {
 }
 
 interface PracticeProps {
-  chapter?: Chapter | null;
+  shortcuts: Shortcut[];
   onExit: () => void;
 }
 
-function Practice({ chapter, onExit }: PracticeProps) {
+function Practice({ shortcuts, onExit }: PracticeProps) {
   const [currentShortcutIndex, setCurrentShortcutIndex] = useState(0);
   const [userAnswer, setUserAnswer] = useState('');
   const [showResult, setShowResult] = useState(false);
-  const [practiceShortcuts, setPracticeShortcuts] = useState<Shortcut[]>([]);
   const [answerAttempts, setAnswerAttempts] = useState<AnswerAttempt[]>([]);
   const [showOverview, setShowOverview] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [practiceShortcuts] = useState(() => shuffleArray([...shortcuts]));
 
-  useEffect(() => {
-    if (chapter) {
-      setPracticeShortcuts(shuffleArray(chapter.shortcuts));
-      setLoading(false);
-    } else {
-      fetchAllShortcuts();
-    }
-  }, [chapter]);
-
-  const fetchAllShortcuts = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('shortcuts')
-        .select('*')
-        .order('shortcut');
-
-      if (error) throw error;
-      setPracticeShortcuts(shuffleArray(data || []));
-    } catch (error) {
-      console.error('Error fetching shortcuts:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const shuffleArray = (array: Shortcut[]) => {
+  function shuffleArray(array: Shortcut[]) {
     const shuffled = [...array];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
     return shuffled;
-  };
-
-  const saveScore = () => {
-    if (!chapter || chapter.id === 'all') return;
-
-    const correctAnswers = answerAttempts.filter(a => a.isCorrect).length;
-    const totalQuestions = answerAttempts.length;
-    const score = Math.round((correctAnswers / totalQuestions) * 100);
-
-    const scoresStr = localStorage.getItem('chapterScores');
-    const scores = scoresStr ? JSON.parse(scoresStr) : {};
-
-    const previousBest = scores[chapter.id] || 0;
-    if (score > previousBest) {
-      scores[chapter.id] = score;
-      localStorage.setItem('chapterScores', JSON.stringify(scores));
-    }
-  };
+  }
 
   const checkAnswer = () => {
     const currentShortcut = practiceShortcuts[currentShortcutIndex];
@@ -104,7 +54,6 @@ function Practice({ chapter, onExit }: PracticeProps) {
     setShowResult(false);
     setUserAnswer('');
     if (currentShortcutIndex + 1 >= practiceShortcuts.length) {
-      saveScore();
       setShowOverview(true);
     } else {
       setCurrentShortcutIndex(prev => prev + 1);
@@ -122,14 +71,6 @@ function Practice({ chapter, onExit }: PracticeProps) {
     setShowResult(true);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-      </div>
-    );
-  }
-
   if (showOverview) {
     const correctAnswers = answerAttempts.filter(a => a.isCorrect).length;
     const score = Math.round((correctAnswers / answerAttempts.length) * 100);
@@ -142,7 +83,7 @@ function Practice({ chapter, onExit }: PracticeProps) {
             className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
           >
             <ArrowLeft size={20} />
-            <span>Back to Chapters</span>
+            <span>Back to List</span>
           </button>
         </div>
         <h2 className="text-lg sm:text-xl font-semibold mb-4">Practice Results</h2>
@@ -181,7 +122,7 @@ function Practice({ chapter, onExit }: PracticeProps) {
           onClick={onExit}
           className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition-colors"
         >
-          Back to Chapters
+          Back to List
         </button>
       </div>
     );
@@ -195,12 +136,10 @@ function Practice({ chapter, onExit }: PracticeProps) {
           className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
         >
           <ArrowLeft size={20} />
-          <span>Back to Chapters</span>
+          <span>Back to List</span>
         </button>
       </div>
-      <h2 className="text-lg sm:text-xl font-semibold mb-4">
-        Practice Mode {chapter && `- ${chapter.name}`}
-      </h2>
+      <h2 className="text-lg sm:text-xl font-semibold mb-4">Practice Mode</h2>
       <div className="mb-6">
         <div className="flex justify-between items-center mb-2">
           <p className="text-base sm:text-lg">What does this shortcut mean?</p>
