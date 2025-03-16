@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, Save, X, BookOpen, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Pencil, Trash2, Save, X, BookOpen, ChevronDown, ChevronRight, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
