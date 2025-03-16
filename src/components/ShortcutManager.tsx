@@ -17,6 +17,7 @@ function ShortcutManager({ shortcuts, onUpdate }: Props) {
   const [newShortcut, setNewShortcut] = useState({ shortcut: '', meaning: '' });
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAdd = async () => {
     if (!session) {
@@ -31,6 +32,9 @@ function ShortcutManager({ shortcuts, onUpdate }: Props) {
     }
 
     try {
+      setIsSubmitting(true);
+      setError(null);
+
       const { error: insertError } = await supabase
         .from('shortcuts')
         .insert([newShortcut]);
@@ -44,29 +48,35 @@ function ShortcutManager({ shortcuts, onUpdate }: Props) {
     } catch (error) {
       console.error('Error adding shortcut:', error);
       setError('Failed to add shortcut');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleEdit = async (shortcut: Shortcut) => {
-    if (!session) {
+  const handleEdit = async () => {
+    if (!session || !editingShortcut) {
       setError('You must be signed in to edit shortcuts');
       return;
     }
 
-    const validationError = validateShortcut(shortcut);
+    const validationError = validateShortcut(editingShortcut);
     if (validationError) {
       setError(validationError);
       return;
     }
 
     try {
+      setIsSubmitting(true);
+      setError(null);
+
       const { error: updateError } = await supabase
         .from('shortcuts')
         .update({
-          shortcut: shortcut.shortcut,
-          meaning: shortcut.meaning
+          shortcut: editingShortcut.shortcut,
+          meaning: editingShortcut.meaning,
+          updated_at: new Date().toISOString()
         })
-        .eq('id', shortcut.id);
+        .eq('id', editingShortcut.id);
 
       if (updateError) throw updateError;
 
@@ -76,6 +86,8 @@ function ShortcutManager({ shortcuts, onUpdate }: Props) {
     } catch (error) {
       console.error('Error updating shortcut:', error);
       setError('Failed to update shortcut');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -88,6 +100,7 @@ function ShortcutManager({ shortcuts, onUpdate }: Props) {
     if (!window.confirm('Are you sure you want to delete this shortcut?')) return;
 
     try {
+      setError(null);
       const { error: deleteError } = await supabase
         .from('shortcuts')
         .delete()
@@ -211,9 +224,10 @@ function ShortcutManager({ shortcuts, onUpdate }: Props) {
                 </button>
                 <button
                   onClick={handleAdd}
-                  className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
                 >
-                  Add Shortcut
+                  {isSubmitting ? 'Adding...' : 'Add Shortcut'}
                 </button>
               </div>
             </div>
@@ -262,10 +276,11 @@ function ShortcutManager({ shortcuts, onUpdate }: Props) {
                   Cancel
                 </button>
                 <button
-                  onClick={() => handleEdit(editingShortcut)}
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                  onClick={handleEdit}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
                 >
-                  Save Changes
+                  {isSubmitting ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </div>
