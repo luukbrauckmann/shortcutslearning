@@ -72,151 +72,161 @@
     },
     {
       "id": "15",
-      "shortcut": "DEPA/DEPU",
-      "meaning": "Deportee Accompanied/Unaccompanied"
+      "shortcut": "DEPA",
+      "meaning": "Deportee Accompanied"
     },
     {
       "id": "16",
+      "shortcut": "DEPU",
+      "meaning": "Deportee Unaccompanied"
+    },
+    {
+      "id": "17",
       "shortcut": "DG",
       "meaning": "Dangerous goods"
     },
     {
-      "id": "17",
+      "id": "18",
       "shortcut": "EASA",
       "meaning": "European Aviation Safety agency"
     },
     {
-      "id": "18",
+      "id": "19",
       "shortcut": "F/O",
       "meaning": "First officer"
     },
     {
-      "id": "19",
+      "id": "20",
       "shortcut": "FWD",
       "meaning": "Front part of the aircraft"
     },
     {
-      "id": "20",
+      "id": "21",
       "shortcut": "GPU",
       "meaning": "Ground power unit"
     },
     {
-      "id": "21",
+      "id": "22",
       "shortcut": "ICAO",
       "meaning": "International Civil Aviation Organisation"
     },
     {
-      "id": "22",
+      "id": "23",
       "shortcut": "IED",
       "meaning": "Improvised explosive device"
     },
     {
-      "id": "23",
+      "id": "24",
       "shortcut": "JCRM",
       "meaning": "Joint crew resource management"
     },
     {
-      "id": "24",
+      "id": "25",
       "shortcut": "LAV",
       "meaning": "Lavatory"
     },
     {
-      "id": "25",
+      "id": "26",
       "shortcut": "LIAC",
       "meaning": "Late incoming aircraft"
     },
     {
-      "id": "26",
+      "id": "27",
       "shortcut": "LT",
       "meaning": "Local Time"
     },
     {
-      "id": "27",
+      "id": "28",
       "shortcut": "OCC",
       "meaning": "Operations Control Center"
     },
     {
-      "id": "28",
+      "id": "29",
       "shortcut": "PA",
       "meaning": "Public Address"
     },
     {
-      "id": "29",
+      "id": "30",
       "shortcut": "PAP",
       "meaning": "Passenger"
     },
     {
-      "id": "30",
+      "id": "31",
       "shortcut": "PAX",
       "meaning": "Passengers"
     },
     {
-      "id": "31",
+      "id": "32",
       "shortcut": "PED",
       "meaning": "Portable Electronic Device"
     },
     {
-      "id": "32",
+      "id": "33",
       "shortcut": "PETC",
       "meaning": "Pet in cabin"
     },
     {
-      "id": "33",
+      "id": "34",
       "shortcut": "PIL",
       "meaning": "Passenger information list"
     },
     {
-      "id": "34",
+      "id": "35",
       "shortcut": "PRM",
       "meaning": "Person with Reduced Mobility"
     },
     {
-      "id": "35",
+      "id": "36",
       "shortcut": "SCD",
       "meaning": "Subject to commander's discretion"
     },
     {
-      "id": "36",
+      "id": "37",
       "shortcut": "SCP",
       "meaning": "Special Category of passengers"
     },
     {
-      "id": "37",
+      "id": "38",
       "shortcut": "SPL",
       "meaning": "Schiphol"
     },
     {
-      "id": "38",
-      "shortcut": "STA/STD",
-      "meaning": "Scheduled Time of Arrival/Departure"
+      "id": "39",
+      "shortcut": "STA",
+      "meaning": "Scheduled Time of Arrival"
     },
     {
-      "id": "39",
+      "id": "40",
+      "shortcut": "STD",
+      "meaning": "Scheduled Time of Departure"
+    },
+    {
+      "id": "41",
       "shortcut": "SVAN",
       "meaning": "Service Animal"
     },
     {
-      "id": "40",
+      "id": "42",
       "shortcut": "TUC",
       "meaning": "Time of useful consciousness"
     },
     {
-      "id": "41",
-      "shortcut": "UM/UM NR",
+      "id": "43",
+      "shortcut": "UM/UMNR",
       "meaning": "Unaccompanied Minor"
     },
     {
-      "id": "42",
+      "id": "44",
       "shortcut": "UTC",
       "meaning": "Universal Time Coordinated"
     },
     {
-      "id": "43",
+      "id": "45",
       "shortcut": "WCH",
       "meaning": "Wheelchair (R/S/C)"
     },
     {
-      "id": "44",
+      "id": "46",
       "shortcut": "Zulu",
       "meaning": "Global time index"
     }
