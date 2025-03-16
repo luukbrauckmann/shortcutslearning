@@ -14,6 +14,7 @@ function SignUpComplete() {
   // Get the token and type from the URL
   const token = searchParams.get('token');
   const type = searchParams.get('type');
+  const redirectTo = searchParams.get('redirect_to');
 
   useEffect(() => {
     if (!token) {
@@ -43,27 +44,34 @@ function SignUpComplete() {
     setLoading(true);
 
     try {
-      if (type === 'invite') {
-        // For invite links, we need to verify the token first
-        const { error: verifyError } = await supabase.auth.verifyOtp({
-          token_hash: token,
-          type: 'invite',
-        });
+      // First verify the token
+      const { error: verifyError, data } = await supabase.auth.verifyOtp({
+        token_hash: token,
+        type: type === 'invite' ? 'invite' : 'signup',
+      });
 
-        if (verifyError) throw verifyError;
-      }
+      if (verifyError) throw verifyError;
 
-      // Update the user's password
+      // Then update the password
       const { error: updateError } = await supabase.auth.updateUser({
         password: password
       });
 
       if (updateError) throw updateError;
 
-      // Navigate to admin page - the auth state will be updated automatically
-      navigate('/admin');
+      // After successful password update, sign in the user
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: data.user?.email || '',
+        password: password,
+      });
+
+      if (signInError) throw signInError;
+
+      // Navigate to the redirect URL if provided, otherwise to admin
+      navigate(redirectTo || '/admin');
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'An error occurred');
+      console.error('Signup completion error:', error);
+      setError(error instanceof Error ? error.message : 'An error occurred during signup completion');
     } finally {
       setLoading(false);
     }
